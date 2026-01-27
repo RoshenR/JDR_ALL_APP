@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install)",
+      "Bash(npx prisma generate:*)",
+      "Bash(npx prisma db push)",
+      "Bash(npm run build:*)",
+      "Bash(npm run dev:*)",
+      "Bash(taskkill:*)",
+      "Bash(npm install:*)",
+      "Bash(ls -la \"C:\\\\Users\\\\ricar\\\\OneDrive\\\\Documents\\\\stage\\\\JDR_App_R\\\\node_modules\\\\.prisma\\\\client\"\" 2>/dev/null || echo \"Prisma client not generated \")",
+      "Bash(dir:*)"
+    ]
+  }
+}

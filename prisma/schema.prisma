@@ -1,0 +1,109 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id         String      @id @default(cuid())
+  email      String      @unique
+  password   String      // Hashed password
+  name       String
+  role       String      @default("PLAYER") // "MJ" or "PLAYER"
+  characters Character[]
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+}
+
+model AuthSession {
+  id        String   @id @default(cuid())
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model Character {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  imageUrl    String?
+  attributes  String    @default("{}") // JSON stored as string for SQLite
+  skills      String?   // JSON stored as string
+  notes       String?
+  campaignId  String?
+  campaign    Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  ownerId     String?   // User who owns this character
+  owner       User?     @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Campaign {
+  id          String      @id @default(cuid())
+  name        String
+  description String?
+  imageUrl    String?
+  system      String?
+  characters  Character[]
+  sessions    Session[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model Session {
+  id         String    @id @default(cuid())
+  number     Int
+  title      String
+  date       DateTime?
+  summary    String?
+  notes      String?
+  campaignId String
+  campaign   Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+model WikiArticle {
+  id        String   @id @default(cuid())
+  title     String
+  slug      String   @unique
+  content   String
+  category  String
+  imageUrl  String?
+  tags      String   @default("[]") // JSON array stored as string
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Combat {
+  id           String              @id @default(cuid())
+  name         String
+  description  String?
+  isActive     Boolean             @default(true)
+  currentRound Int                 @default(1)
+  currentTurn  Int                 @default(0) // Index of current participant
+  campaignId   String?
+  participants CombatParticipant[]
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+}
+
+model CombatParticipant {
+  id          String  @id @default(cuid())
+  name        String
+  initiative  Int     @default(0)
+  currentHp   Int     @default(0)
+  maxHp       Int     @default(0)
+  armorClass  Int?
+  isNpc       Boolean @default(false)
+  isActive    Boolean @default(true) // false = mort ou retiré
+  conditions  String  @default("[]") // JSON array: ["poisoned", "stunned"]
+  notes       String?
+  characterId String? // Lien optionnel vers un personnage existant
+  combatId    String
+  combat      Combat  @relation(fields: [combatId], references: [id], onDelete: Cascade)
+  order       Int     @default(0) // Pour le tri par initiative
+}
