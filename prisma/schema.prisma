@@ -3,17 +3,18 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
   id               String        @id @default(cuid())
   email            String        @unique
-  password         String        // Hashed password
+  password         String // Hashed password
   name             String
   role             String        @default("PLAYER") // "MJ" or "PLAYER"
-  chatColor        String?       // Couleur personnalisée pour le chat (ex: "blue", "emerald", "violet")
+  chatColor        String? // Couleur personnalisée pour le chat (ex: "blue", "emerald", "violet")
   characters       Character[]
   diceRolls        DiceRoll[]
   sentMessages     ChatMessage[] @relation("MessageSender")
@@ -35,11 +36,11 @@ model Character {
   description    String?
   imageUrl       String?
   attributes     String          @default("{}") // JSON stored as string for SQLite
-  skills         String?         // JSON stored as string
+  skills         String? // JSON stored as string
   notes          String?
   campaignId     String?
   campaign       Campaign?       @relation(fields: [campaignId], references: [id], onDelete: SetNull)
-  ownerId        String?         // User who owns this character
+  ownerId        String? // User who owns this character
   owner          User?           @relation(fields: [ownerId], references: [id], onDelete: SetNull)
   characterNotes CharacterNote[]
   inventory      InventoryItem[]
@@ -51,7 +52,7 @@ model CharacterNote {
   id          String    @id @default(cuid())
   title       String
   content     String
-  category    String?   // "quest", "npc", "location", "other"
+  category    String? // "quest", "npc", "location", "other"
   isPinned    Boolean   @default(false)
   characterId String
   character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
@@ -64,8 +65,8 @@ model InventoryItem {
   name        String
   quantity    Int       @default(1)
   description String?
-  category    String?   // "weapon", "armor", "consumable", "quest", "misc"
-  rarity      String?   // "common", "uncommon", "rare", "epic", "legendary"
+  category    String? // "weapon", "armor", "consumable", "quest", "misc"
+  rarity      String? // "common", "uncommon", "rare", "epic", "legendary"
   weight      Float?
   value       Int?
   characterId String
@@ -152,7 +153,7 @@ model ItemTemplate {
   id          String           @id @default(cuid())
   name        String
   description String?
-  category    String           // "weapon", "armor", "consumable", "quest", "misc"
+  category    String // "weapon", "armor", "consumable", "quest", "misc"
   rarity      String           @default("common") // "common", "uncommon", "rare", "epic", "legendary"
   weight      Float?
   minValue    Int              @default(0) // Valeur minimum
@@ -190,10 +191,10 @@ model LootTableEntry {
 
 model DiceRoll {
   id         String    @id @default(cuid())
-  formula    String    // "2d6+3"
-  results    String    // JSON: [4, 2]
+  formula    String // "2d6+3"
+  results    String // JSON: [4, 2]
   total      Int
-  label      String?   // "Jet d'attaque"
+  label      String? // "Jet d'attaque"
   isPrivate  Boolean   @default(false)
   userId     String
   user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -214,7 +215,7 @@ model ChatMessage {
   campaign    Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   senderId    String
   sender      User     @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
-  recipientId String?  // NULL = message groupe, sinon = message privé
+  recipientId String? // NULL = message groupe, sinon = message privé
   recipient   User?    @relation("MessageRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
   createdAt   DateTime @default(now())
 }
@@ -229,7 +230,7 @@ model Quest {
   rewards     String   @default("{}") // JSON: {gold, xp, items}
   difficulty  String   @default("medium")
   status      String   @default("draft") // draft, active, completed, failed
-  questType   String?  // fetch, escort, kill, explore, mystery
+  questType   String? // fetch, escort, kill, explore, mystery
   location    String?
   npcGiver    String?
   campaignId  String
@@ -256,8 +257,8 @@ model LootGenerationSettings {
 
 model PendingLoot {
   id         String   @id @default(cuid())
-  items      String   // JSON array des items générés
-  source     String?  // "coffre", "ennemi", "récompense"
+  items      String // JSON array des items générés
+  source     String? // "coffre", "ennemi", "récompense"
   status     String   @default("pending") // pending, approved, rejected, distributed
   notes      String?
   campaignId String
