@@ -29,11 +29,14 @@ interface CharacterFormProps {
     skills: Record<string, string | number> | null
   }
   campaigns: Array<{ id: string; name: string }>
+  /** IDs des campagnes où le joueur a déjà un personnage */
+  campaignsWithCharacter?: string[]
 }
 
-export function CharacterForm({ character, campaigns }: CharacterFormProps) {
+export function CharacterForm({ character, campaigns, campaignsWithCharacter = [] }: CharacterFormProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [name, setName] = useState(character?.name || '')
   const [description, setDescription] = useState(character?.description || '')
   const [imageUrl, setImageUrl] = useState(character?.imageUrl || '')
@@ -53,6 +56,7 @@ export function CharacterForm({ character, campaigns }: CharacterFormProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
+    setError(null)
 
     const data = {
       name,
@@ -78,8 +82,8 @@ export function CharacterForm({ character, campaigns }: CharacterFormProps) {
       }
       router.push('/characters')
       router.refresh()
-    } catch (error) {
-      console.error('Error saving character:', error)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Une erreur est survenue')
     } finally {
       setLoading(false)
     }
@@ -103,6 +107,12 @@ export function CharacterForm({ character, campaigns }: CharacterFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {error && (
+        <div className="bg-destructive/10 text-destructive p-4 rounded-md">
+          {error}
+        </div>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle>Informations de base</CardTitle>
@@ -127,11 +137,18 @@ export function CharacterForm({ character, campaigns }: CharacterFormProps) {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Aucune</SelectItem>
-                  {campaigns.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
+                  {campaigns.map((c) => {
+                    const alreadyHasCharacter = campaignsWithCharacter.includes(c.id) && character?.campaignId !== c.id
+                    return (
+                      <SelectItem
+                        key={c.id}
+                        value={c.id}
+                        disabled={alreadyHasCharacter}
+                      >
+                        {c.name}{alreadyHasCharacter ? ' (personnage existant)' : ''}
+                      </SelectItem>
+                    )
+                  })}
                 </SelectContent>
               </Select>
             </div>

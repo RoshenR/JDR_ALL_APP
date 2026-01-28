@@ -1,9 +1,13 @@
 import { Header } from '@/components/layout/Header'
 import { CharacterForm } from '@/components/characters/CharacterForm'
 import { getCampaigns } from '@/lib/actions/campaigns'
+import { getUserCampaignsWithCharacter } from '@/lib/actions/characters'
 
 export default async function NewCharacterPage() {
-  const campaigns = await getCampaigns()
+  const [campaigns, campaignsWithCharacter] = await Promise.all([
+    getCampaigns(),
+    getUserCampaignsWithCharacter()
+  ])
 
   return (
     <>
@@ -13,7 +17,10 @@ export default async function NewCharacterPage() {
       />
 
       <div className="p-6 max-w-3xl">
-        <CharacterForm campaigns={campaigns} />
+        <CharacterForm
+          campaigns={campaigns}
+          campaignsWithCharacter={campaignsWithCharacter}
+        />
       </div>
     </>
   )

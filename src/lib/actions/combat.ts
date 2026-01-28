@@ -3,12 +3,30 @@
 import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/db'
 import { getCurrentUser } from './auth'
+import { triggerPusherEvent, getCombatChannel } from '@/lib/pusher/server'
 
 async function requireMJ() {
   const user = await getCurrentUser()
   if (!user) throw new Error('Non authentifié')
   if (user.role !== 'MJ') throw new Error('Réservé au MJ')
   return user
+}
+
+// Helper pour broadcast Pusher (non bloquant)
+async function broadcastCombatUpdate(
+  combatId: string,
+  type: 'participant_update' | 'turn_change' | 'round_change' | 'combat_end',
+  data: unknown
+) {
+  try {
+    await triggerPusherEvent(getCombatChannel(combatId), 'combat-update', {
+      combatId,
+      type,
+      data
+    })
+  } catch (error) {
+    console.error('Erreur Pusher broadcast:', error)
+  }
 }
 
 export async function getCombats() {
@@ -84,6 +102,12 @@ export async function updateCombat(id: string, data: {
     where: { id },
     data
   })
+
+  // Broadcast si le combat est terminé
+  if (data.isActive === false) {
+    await broadcastCombatUpdate(id, 'combat_end', { combatId: id })
+  }
+
   revalidatePath('/combat')
   revalidatePath(`/combat/${id}`)
   return combat
@@ -161,6 +185,13 @@ export async function updateParticipant(id: string, data: {
     where: { id },
     data: updateData
   })
+
+  // Broadcast la mise à jour en temps réel
+  await broadcastCombatUpdate(participant.combatId, 'participant_update', {
+    participantId: id,
+    changes: data
+  })
+
   revalidatePath(`/combat/${participant.combatId}`)
   return participant
 }
@@ -212,20 +243,26 @@ export async function nextTurn(combatId: string) {
 
   if (!combat || combat.participants.length === 0) return
 
-  let nextTurn = combat.currentTurn + 1
-  let nextRound = combat.currentRound
+  let newTurn = combat.currentTurn + 1
+  let newRound = combat.currentRound
 
-  if (nextTurn >= combat.participants.length) {
-    nextTurn = 0
-    nextRound += 1
+  if (newTurn >= combat.participants.length) {
+    newTurn = 0
+    newRound += 1
   }
 
   await prisma.combat.update({
     where: { id: combatId },
     data: {
-      currentTurn: nextTurn,
-      currentRound: nextRound
+      currentTurn: newTurn,
+      currentRound: newRound
     }
+  })
+
+  // Broadcast le changement de tour
+  await broadcastCombatUpdate(combatId, 'turn_change', {
+    currentTurn: newTurn,
+    currentRound: newRound
   })
 
   revalidatePath(`/combat/${combatId}`)
@@ -264,6 +301,12 @@ export async function previousTurn(combatId: string) {
       currentTurn: prevTurn,
       currentRound: prevRound
     }
+  })
+
+  // Broadcast le changement de tour
+  await broadcastCombatUpdate(combatId, 'turn_change', {
+    currentTurn: prevTurn,
+    currentRound: prevRound
   })
 
   revalidatePath(`/combat/${combatId}`)

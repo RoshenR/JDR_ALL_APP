@@ -41,6 +41,19 @@ export async function createCharacter(data: {
   const user = await getCurrentUser()
   if (!user) throw new Error('Non authentifié')
 
+  // Un joueur ne peut avoir qu'un personnage par campagne (MJ exempt)
+  if (data.campaignId && user.role !== 'MJ') {
+    const existingCharacter = await prisma.character.findFirst({
+      where: {
+        ownerId: user.id,
+        campaignId: data.campaignId
+      }
+    })
+    if (existingCharacter) {
+      throw new Error('Vous avez déjà un personnage dans cette campagne')
+    }
+  }
+
   const character = await prisma.character.create({
     data: {
       name: data.name,
@@ -74,6 +87,20 @@ export async function updateCharacter(id: string, data: {
   if (!character) throw new Error('Personnage non trouvé')
   if (user.role !== 'MJ' && character.ownerId !== user.id) {
     throw new Error('Non autorisé')
+  }
+
+  // Un joueur ne peut avoir qu'un personnage par campagne (MJ exempt)
+  if (data.campaignId && data.campaignId !== character.campaignId && user.role !== 'MJ') {
+    const existingCharacter = await prisma.character.findFirst({
+      where: {
+        ownerId: character.ownerId,
+        campaignId: data.campaignId,
+        id: { not: id }
+      }
+    })
+    if (existingCharacter) {
+      throw new Error('Ce joueur a déjà un personnage dans cette campagne')
+    }
   }
 
   const updateData: Record<string, unknown> = {}
@@ -119,4 +146,19 @@ export async function canEditCharacter(characterId: string): Promise<boolean> {
     select: { ownerId: true }
   })
   return character?.ownerId === user.id
+}
+
+export async function getUserCampaignsWithCharacter(): Promise<string[]> {
+  const user = await getCurrentUser()
+  if (!user || user.role === 'MJ') return []
+
+  const characters = await prisma.character.findMany({
+    where: {
+      ownerId: user.id,
+      campaignId: { not: null }
+    },
+    select: { campaignId: true }
+  })
+
+  return characters.map(c => c.campaignId).filter((id): id is string => id !== null)
 }

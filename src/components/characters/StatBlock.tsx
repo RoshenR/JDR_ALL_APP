@@ -12,18 +12,18 @@ export function StatBlock({ title, stats }: StatBlockProps) {
 
   return (
     <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base">{title}</CardTitle>
+      <CardHeader className="pb-2 sm:pb-3">
+        <CardTitle className="text-sm sm:text-base">{title}</CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <CardContent className="pt-0">
+        <div className="grid grid-cols-3 gap-2 sm:gap-3 sm:grid-cols-4 lg:grid-cols-6">
           {entries.map(([key, value]) => (
             <div
               key={key}
-              className="flex flex-col items-center rounded-lg border p-3 text-center"
+              className="flex flex-col items-center rounded-lg border bg-muted/30 p-2 sm:p-3 text-center transition-colors hover:bg-muted/50"
             >
-              <span className="text-2xl font-bold">{value}</span>
-              <span className="text-xs text-muted-foreground">{key}</span>
+              <span className="text-xl sm:text-2xl font-bold">{value}</span>
+              <span className="text-[10px] sm:text-xs text-muted-foreground truncate w-full">{key}</span>
             </div>
           ))}
         </div>

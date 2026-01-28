@@ -9,7 +9,16 @@
       "Bash(taskkill:*)",
       "Bash(npm install:*)",
       "Bash(ls -la \"C:\\\\Users\\\\ricar\\\\OneDrive\\\\Documents\\\\stage\\\\JDR_App_R\\\\node_modules\\\\.prisma\\\\client\"\" 2>/dev/null || echo \"Prisma client not generated \")",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Bash(wc:*)",
+      "Bash(npx prisma migrate:*)",
+      "Bash(echo:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx next lint:*)",
+      "Bash(npm --version)",
+      "Bash(npm i:*)",
+      "Bash(/c/Program\\\\ Files/nodejs/npm.cmd install:*)",
+      "Bash(npm ls:*)"
     ]
   }
 }

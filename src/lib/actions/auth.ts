@@ -15,6 +15,7 @@ export interface SessionUser {
   email: string
   name: string
   role: UserRole
+  chatColor: string | null
 }
 
 export async function register(data: {
@@ -102,7 +103,7 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
 
   const user = await prisma.user.findUnique({
     where: { id: session.userId },
-    select: { id: true, email: true, name: true, role: true }
+    select: { id: true, email: true, name: true, role: true, chatColor: true }
   })
 
   return user as SessionUser | null

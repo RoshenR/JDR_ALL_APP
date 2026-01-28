@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation'
 import { Header } from '@/components/layout/Header'
 import { CharacterForm } from '@/components/characters/CharacterForm'
-import { getCharacter } from '@/lib/actions/characters'
+import { getCharacter, getUserCampaignsWithCharacter } from '@/lib/actions/characters'
 import { getCampaigns } from '@/lib/actions/campaigns'
 
 interface PageProps {
@@ -9,9 +9,10 @@ interface PageProps {
 }
 
 export default async function EditCharacterPage({ params }: PageProps) {
-  const [character, campaigns] = await Promise.all([
+  const [character, campaigns, campaignsWithCharacter] = await Promise.all([
     getCharacter(params.id),
     getCampaigns(),
+    getUserCampaignsWithCharacter()
   ])
 
   if (!character) {
@@ -26,7 +27,11 @@ export default async function EditCharacterPage({ params }: PageProps) {
       />
 
       <div className="p-6 max-w-3xl">
-        <CharacterForm character={character} campaigns={campaigns} />
+        <CharacterForm
+          character={character}
+          campaigns={campaigns}
+          campaignsWithCharacter={campaignsWithCharacter}
+        />
       </div>
     </>
   )

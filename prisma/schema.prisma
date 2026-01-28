@@ -8,14 +8,18 @@ datasource db {
 }
 
 model User {
-  id         String      @id @default(cuid())
-  email      String      @unique
-  password   String      // Hashed password
-  name       String
-  role       String      @default("PLAYER") // "MJ" or "PLAYER"
-  characters Character[]
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
+  id               String        @id @default(cuid())
+  email            String        @unique
+  password         String        // Hashed password
+  name             String
+  role             String        @default("PLAYER") // "MJ" or "PLAYER"
+  chatColor        String?       // Couleur personnalisée pour le chat (ex: "blue", "emerald", "violet")
+  characters       Character[]
+  diceRolls        DiceRoll[]
+  sentMessages     ChatMessage[] @relation("MessageSender")
+  receivedMessages ChatMessage[] @relation("MessageRecipient")
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
 }
 
 model AuthSession {
@@ -26,31 +30,65 @@ model AuthSession {
 }
 
 model Character {
+  id             String          @id @default(cuid())
+  name           String
+  description    String?
+  imageUrl       String?
+  attributes     String          @default("{}") // JSON stored as string for SQLite
+  skills         String?         // JSON stored as string
+  notes          String?
+  campaignId     String?
+  campaign       Campaign?       @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  ownerId        String?         // User who owns this character
+  owner          User?           @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  characterNotes CharacterNote[]
+  inventory      InventoryItem[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+}
+
+model CharacterNote {
+  id          String    @id @default(cuid())
+  title       String
+  content     String
+  category    String?   // "quest", "npc", "location", "other"
+  isPinned    Boolean   @default(false)
+  characterId String
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model InventoryItem {
   id          String    @id @default(cuid())
   name        String
+  quantity    Int       @default(1)
   description String?
-  imageUrl    String?
-  attributes  String    @default("{}") // JSON stored as string for SQLite
-  skills      String?   // JSON stored as string
-  notes       String?
-  campaignId  String?
-  campaign    Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
-  ownerId     String?   // User who owns this character
-  owner       User?     @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  category    String?   // "weapon", "armor", "consumable", "quest", "misc"
+  rarity      String?   // "common", "uncommon", "rare", "epic", "legendary"
+  weight      Float?
+  value       Int?
+  characterId String
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 }
 
 model Campaign {
-  id          String      @id @default(cuid())
-  name        String
-  description String?
-  imageUrl    String?
-  system      String?
-  characters  Character[]
-  sessions    Session[]
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id           String                  @id @default(cuid())
+  name         String
+  description  String?
+  imageUrl     String?
+  system       String?
+  characters   Character[]
+  sessions     Session[]
+  diceRolls    DiceRoll[]
+  messages     ChatMessage[]
+  quests       Quest[]
+  lootSettings LootGenerationSettings?
+  pendingLoot  PendingLoot[]
+  createdAt    DateTime                @default(now())
+  updatedAt    DateTime                @updatedAt
 }
 
 model Session {
@@ -106,4 +144,124 @@ model CombatParticipant {
   combatId    String
   combat      Combat  @relation(fields: [combatId], references: [id], onDelete: Cascade)
   order       Int     @default(0) // Pour le tri par initiative
+}
+
+// ============ LOOT SYSTEM ============
+
+model ItemTemplate {
+  id          String           @id @default(cuid())
+  name        String
+  description String?
+  category    String           // "weapon", "armor", "consumable", "quest", "misc"
+  rarity      String           @default("common") // "common", "uncommon", "rare", "epic", "legendary"
+  weight      Float?
+  minValue    Int              @default(0) // Valeur minimum
+  maxValue    Int              @default(0) // Valeur maximum (pour génération aléatoire)
+  properties  String           @default("{}") // JSON: dégâts, bonus, effets, etc.
+  tags        String           @default("[]") // JSON array: ["magic", "cursed", "two-handed"]
+  imageUrl    String?
+  lootEntries LootTableEntry[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+}
+
+model LootTable {
+  id          String           @id @default(cuid())
+  name        String
+  description String?
+  minRarity   String           @default("common") // Rareté minimum générée
+  maxRarity   String           @default("legendary") // Rareté maximum générée
+  campaignId  String? // Optionnel: lié à une campagne
+  entries     LootTableEntry[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+}
+
+model LootTableEntry {
+  id             String       @id @default(cuid())
+  weight         Int          @default(100) // Poids de probabilité (plus haut = plus fréquent)
+  lootTableId    String
+  lootTable      LootTable    @relation(fields: [lootTableId], references: [id], onDelete: Cascade)
+  itemTemplateId String
+  itemTemplate   ItemTemplate @relation(fields: [itemTemplateId], references: [id], onDelete: Cascade)
+}
+
+// ============ DICE ROLLS ============
+
+model DiceRoll {
+  id         String    @id @default(cuid())
+  formula    String    // "2d6+3"
+  results    String    // JSON: [4, 2]
+  total      Int
+  label      String?   // "Jet d'attaque"
+  isPrivate  Boolean   @default(false)
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  campaignId String?
+  campaign   Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  createdAt  DateTime  @default(now())
+}
+
+// ============ CHAT ============
+
+model ChatMessage {
+  id          String   @id @default(cuid())
+  content     String
+  messageType String   @default("text") // "text", "dice_roll", "system"
+  metadata    String   @default("{}") // JSON pour données additionnelles
+  isDeleted   Boolean  @default(false)
+  campaignId  String
+  campaign    Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  senderId    String
+  sender      User     @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  recipientId String?  // NULL = message groupe, sinon = message privé
+  recipient   User?    @relation("MessageRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+}
+
+// ============ QUESTS ============
+
+model Quest {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  objectives  String   @default("[]") // JSON array
+  rewards     String   @default("{}") // JSON: {gold, xp, items}
+  difficulty  String   @default("medium")
+  status      String   @default("draft") // draft, active, completed, failed
+  questType   String?  // fetch, escort, kill, explore, mystery
+  location    String?
+  npcGiver    String?
+  campaignId  String
+  campaign    Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ============ LOOT GENERATION SETTINGS ============
+
+model LootGenerationSettings {
+  id                String   @id @default(cuid())
+  minRarity         String   @default("common")
+  maxRarity         String   @default("rare")
+  maxItemValue      Int      @default(1000)
+  maxTotalValue     Int      @default(5000)
+  allowedCategories String   @default("[]") // JSON array
+  bannedItemIds     String   @default("[]") // JSON array
+  campaignId        String   @unique
+  campaign          Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model PendingLoot {
+  id         String   @id @default(cuid())
+  items      String   // JSON array des items générés
+  source     String?  // "coffre", "ennemi", "récompense"
+  status     String   @default("pending") // pending, approved, rejected, distributed
+  notes      String?
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }

@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { SessionList } from '@/components/campaigns/SessionList'
 import { getCampaign, deleteCampaign } from '@/lib/actions/campaigns'
 import { getCurrentUser } from '@/lib/actions/auth'
-import { Edit, Trash2, Sword, Users } from 'lucide-react'
+import { Edit, Trash2, Sword, Users, MessageSquare, Scroll, Package, Dices } from 'lucide-react'
 import { redirect } from 'next/navigation'
 
 interface PageProps {
@@ -90,6 +90,35 @@ export default async function CampaignPage({ params }: PageProps) {
 
           {/* Sidebar */}
           <div className="space-y-6">
+            {/* Quick Actions */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Actions rapides</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <Button asChild variant="outline" className="w-full justify-start">
+                  <Link href={`/campaigns/${campaign.id}/chat`}>
+                    <MessageSquare className="h-4 w-4 mr-2" />
+                    Chat de campagne
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" className="w-full justify-start">
+                  <Link href={`/campaigns/${campaign.id}/quests`}>
+                    <Scroll className="h-4 w-4 mr-2" />
+                    Quêtes
+                  </Link>
+                </Button>
+                {user?.role === 'MJ' && (
+                  <Button asChild variant="outline" className="w-full justify-start">
+                    <Link href={`/campaigns/${campaign.id}/loot`}>
+                      <Package className="h-4 w-4 mr-2" />
+                      Gestion du Loot
+                    </Link>
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+
             {/* Characters */}
             <Card>
               <CardHeader>
