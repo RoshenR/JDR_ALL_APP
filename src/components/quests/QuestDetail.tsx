@@ -283,7 +283,7 @@ export function QuestDetail({ quest, campaignId, isMJ = false }: QuestDetailProp
                 <div className="flex items-center gap-3 p-3 rounded-lg bg-amber-500/10">
                   <Coins className="h-6 w-6 text-amber-600" />
                   <div>
-                    <div className="font-semibold">{localQuest.rewards.gold} pièces d'or</div>
+                    <div className="font-semibold">{localQuest.rewards.gold} pieces d&apos;or</div>
                     <div className="text-sm text-muted-foreground">Or</div>
                   </div>
                 </div>

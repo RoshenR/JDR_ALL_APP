@@ -61,7 +61,7 @@ export function InventoryTable({ characterId, items, canEdit }: InventoryTablePr
           <p className="text-lg font-medium">Inventaire vide</p>
           {canEdit && (
             <p className="text-sm mt-1">
-              Ajoutez des objets à l'inventaire
+              Ajoutez des objets à l&apos;inventaire
             </p>
           )}
         </div>
@@ -138,7 +138,7 @@ export function InventoryTable({ characterId, items, canEdit }: InventoryTablePr
       <Dialog open={!!editingItem} onOpenChange={(open) => !open && setEditingItem(null)}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Modifier l'objet</DialogTitle>
+            <DialogTitle>Modifier l&apos;objet</DialogTitle>
           </DialogHeader>
           {editingItem && (
             <InventoryForm

@@ -53,7 +53,7 @@ export function LootGenerator({ campaignId }: LootGeneratorProps) {
       <CardContent className="space-y-4">
         {/* Nombre d'objets */}
         <div className="space-y-2">
-          <Label>Nombre d'objets</Label>
+          <Label>Nombre d&apos;objets</Label>
           <div className="flex items-center gap-3">
             <Button
               type="button"

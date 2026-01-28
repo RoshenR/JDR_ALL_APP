@@ -172,7 +172,7 @@ export function LootConstraints({ campaignId, initialSettings }: LootConstraints
               }))}
               min={0}
             />
-            <p className="text-xs text-muted-foreground">Pièces d'or maximum par objet</p>
+            <p className="text-xs text-muted-foreground">Pieces d&apos;or maximum par objet</p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="maxTotalValue">Valeur totale max</Label>

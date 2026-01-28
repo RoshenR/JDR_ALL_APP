@@ -70,7 +70,7 @@ export function RewardEditor({ rewards, onChange, disabled }: RewardEditorProps)
         <div className="space-y-2">
           <Label className="text-sm text-muted-foreground flex items-center gap-1">
             <Sparkles className="h-4 w-4 text-purple-500" />
-            Points d'expérience
+            Points d&apos;experience
           </Label>
           <Input
             type="number"
@@ -136,7 +136,7 @@ export function RewardEditor({ rewards, onChange, disabled }: RewardEditorProps)
           <Input
             value={newItemName}
             onChange={(e) => setNewItemName(e.target.value)}
-            placeholder="Nom de l'objet..."
+            placeholder="Nom de l&apos;objet..."
             className="flex-1"
             disabled={disabled}
             onKeyDown={(e) => {
@@ -166,7 +166,7 @@ export function RewardEditor({ rewards, onChange, disabled }: RewardEditorProps)
         <Input
           value={rewards.other || ''}
           onChange={(e) => updateReward('other', e.target.value || undefined)}
-          placeholder="Faveur d'un noble, accès à une zone..."
+          placeholder="Faveur d&apos;un noble, acces a une zone..."
           disabled={disabled}
         />
       </div>
