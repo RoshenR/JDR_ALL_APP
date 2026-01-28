@@ -143,6 +143,7 @@ async function createSession(userId: string) {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
+    path: '/',
     expires: session.expiresAt
   })
 }
