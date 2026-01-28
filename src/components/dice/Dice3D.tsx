@@ -124,7 +124,7 @@ function D6Mesh({ result, isRolling, color = '#dc2626', onRollComplete }: Omit<D
 }
 
 function D20Mesh({ result, isRolling, color = '#2563eb', onRollComplete }: Omit<DiceProps, 'sides'>) {
-  const meshRef = useRef<THREE.Mesh>(null)
+  const meshRef = useRef<THREE.Group>(null)
   const rollTimeRef = useRef(0)
 
   useFrame((_, delta) => {
@@ -150,7 +150,7 @@ function D20Mesh({ result, isRolling, color = '#2563eb', onRollComplete }: Omit<
   })
 
   return (
-    <group ref={meshRef as React.RefObject<THREE.Group>}>
+    <group ref={meshRef}>
       <mesh castShadow receiveShadow>
         <icosahedronGeometry args={[0.7, 0]} />
         <meshStandardMaterial color={color} roughness={0.3} metalness={0.2} />
