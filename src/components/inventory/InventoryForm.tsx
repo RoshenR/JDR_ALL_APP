@@ -73,11 +73,11 @@ export function InventoryForm({ characterId, item, onSuccess, onCancel }: Invent
         const data = {
           name: name.trim(),
           quantity,
-          description: description.trim() || null,
-          category: category || null,
-          rarity: rarity || null,
-          weight: weight ? parseFloat(weight) : null,
-          value: value ? parseInt(value, 10) : null
+          description: description.trim() || undefined,
+          category: category || undefined,
+          rarity: rarity || undefined,
+          weight: weight ? parseFloat(weight) : undefined,
+          value: value ? parseInt(value, 10) : undefined
         }
 
         if (isEditing) {
