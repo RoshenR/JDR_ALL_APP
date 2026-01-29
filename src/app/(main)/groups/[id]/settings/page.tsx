@@ -147,7 +147,7 @@ export default function GroupSettingsPage({ params }: PageProps) {
                   <AlertDialogTitle>Supprimer le groupe ?</AlertDialogTitle>
                   <AlertDialogDescription>
                     Cette action est irréversible. Tous les messages seront supprimés
-                    et les membres perdront l'accès au groupe.
+                    et les membres perdront l&apos;accès au groupe.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>

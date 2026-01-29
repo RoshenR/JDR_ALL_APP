@@ -38,7 +38,7 @@ export default async function GroupsPage() {
             <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
             <h2 className="text-xl font-semibold mb-2">Aucun groupe</h2>
             <p className="text-muted-foreground mb-4">
-              Créez un groupe pour discuter avec d'autres joueurs
+              Créez un groupe pour discuter avec d&apos;autres joueurs
             </p>
             <Link href="/groups/new">
               <Button>

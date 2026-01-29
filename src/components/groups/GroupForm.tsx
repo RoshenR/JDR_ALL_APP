@@ -123,7 +123,7 @@ export function GroupForm({ group, mode }: GroupFormProps) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="iconUrl">URL de l'icône</Label>
+            <Label htmlFor="iconUrl">URL de l&apos;icône</Label>
             <Input
               id="iconUrl"
               value={iconUrl}
