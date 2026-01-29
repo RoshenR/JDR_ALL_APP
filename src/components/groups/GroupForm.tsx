@@ -59,7 +59,7 @@ export function GroupForm({ group, mode }: GroupFormProps) {
         if (result.success) {
           router.push(`/groups/${result.group.id}`)
         } else {
-          setError(result.error)
+          setError(result.error ?? null)
         }
       } else if (group) {
         const result = await updateGroup(group.id, {
@@ -72,7 +72,7 @@ export function GroupForm({ group, mode }: GroupFormProps) {
         if (result.success) {
           router.push(`/groups/${group.id}`)
         } else {
-          setError(result.error)
+          setError(result.error ?? null)
         }
       }
     })
