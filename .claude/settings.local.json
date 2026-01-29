@@ -23,7 +23,13 @@
       "Bash(npx vercel env:*)",
       "Bash(npx prisma db push:*)",
       "Bash(powershell.exe -Command \"cd ''C:\\\\Users\\\\ricar\\\\OneDrive\\\\Documents\\\\stage\\\\JDR_App_R''; npx prisma db push\")",
-      "Bash(powershell.exe -Command \"cd ''C:\\\\Users\\\\ricar\\\\OneDrive\\\\Documents\\\\stage\\\\JDR_App_R''; npx prisma generate --no-engine\")"
+      "Bash(powershell.exe -Command \"cd ''C:\\\\Users\\\\ricar\\\\OneDrive\\\\Documents\\\\stage\\\\JDR_App_R''; npx prisma generate --no-engine\")",
+      "Bash(move login \"\\(auth\\)\\\\login\")",
+      "Bash(move register \"\\(auth\\)\\\\register\")",
+      "Bash(ls:*)",
+      "Bash(npx prisma db pull:*)",
+      "Bash(ping:*)",
+      "Bash(powershell -Command \"Test-NetConnection -ComputerName ep-shiny-union-agovlcgy-pooler.c-2.eu-central-1.aws.neon.tech -Port 5432\":*)"
     ]
   }
 }
