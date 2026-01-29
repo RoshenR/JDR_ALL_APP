@@ -59,6 +59,14 @@ export function useCombatChannel(combatId: string | undefined, enabled = true) {
   })
 }
 
+// Hook spécialisé pour les groupes
+export function useGroupChannel(groupId: string | undefined, enabled = true) {
+  return usePusher({
+    channelName: groupId ? `group-${groupId}` : '',
+    enabled: enabled && !!groupId
+  })
+}
+
 // Hook pour écouter un événement spécifique
 export function usePusherEvent<T>(
   channelName: string,

@@ -12,7 +12,8 @@ import {
   Menu,
   X,
   Dices,
-  Package
+  Package,
+  MessagesSquare
 } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -21,6 +22,7 @@ const navigation = [
   { name: 'Dashboard', href: '/', icon: Home },
   { name: 'Personnages', href: '/characters', icon: Users },
   { name: 'Campagnes', href: '/campaigns', icon: Sword },
+  { name: 'Groupes', href: '/groups', icon: MessagesSquare },
   { name: 'Combat', href: '/combat', icon: Swords },
   { name: 'Dés', href: '/dice', icon: Dices },
   { name: 'Loot', href: '/loot', icon: Package },

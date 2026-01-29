@@ -23,6 +23,8 @@ export type PusherEventType =
   | 'chat-message'
   | 'quest-update'
   | 'loot-update'
+  | 'member-added'
+  | 'member-removed'
 
 // Fonction helper pour trigger des événements
 export async function triggerPusherEvent(
@@ -47,4 +49,9 @@ export function getCombatChannel(combatId: string): string {
 // Canaux privés pour les messages DM
 export function getPrivateChannel(userId: string): string {
   return `private-user-${userId}`
+}
+
+// Canaux de groupe
+export function getGroupChannel(groupId: string): string {
+  return `group-${groupId}`
 }
