@@ -12,13 +12,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { updateSession, deleteSession } from '@/lib/actions/campaigns'
 import { formatDate } from '@/lib/utils'
 import type { Session } from '@/types'
-import { Trash2 } from 'lucide-react'
+import { Trash2, Calendar } from 'lucide-react'
 
 interface SessionNotesProps {
   session: Session
+  isMJ?: boolean
 }
 
-export function SessionNotes({ session }: SessionNotesProps) {
+export function SessionNotes({ session, isMJ = false }: SessionNotesProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [title, setTitle] = useState(session.title)
@@ -54,6 +55,60 @@ export function SessionNotes({ session }: SessionNotesProps) {
     }
   }
 
+  // Vue lecture seule pour les joueurs
+  if (!isMJ) {
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Informations</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Titre</p>
+                <p className="text-lg font-semibold">{session.title}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Date</p>
+                <p className="text-lg flex items-center gap-2">
+                  {session.date ? (
+                    <>
+                      <Calendar className="h-4 w-4" />
+                      {formatDate(session.date)}
+                    </>
+                  ) : (
+                    <span className="text-muted-foreground">Non definie</span>
+                  )}
+                </p>
+              </div>
+            </div>
+            {session.summary && (
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Resume</p>
+                <p className="mt-1">{session.summary}</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {session.notes && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Notes</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="prose prose-sm dark:prose-invert max-w-none">
+                <ReactMarkdown>{session.notes}</ReactMarkdown>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    )
+  }
+
+  // Vue edition pour le MJ
   return (
     <div className="space-y-6">
       <Card>
@@ -81,12 +136,12 @@ export function SessionNotes({ session }: SessionNotesProps) {
             </div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="session-summary">Résumé</Label>
+            <Label htmlFor="session-summary">Resume</Label>
             <Textarea
               id="session-summary"
               value={summary}
               onChange={(e) => setSummary(e.target.value)}
-              placeholder="Résumé de la session..."
+              placeholder="Resume de la session..."
               rows={3}
             />
           </div>
@@ -100,14 +155,14 @@ export function SessionNotes({ session }: SessionNotesProps) {
         <CardContent>
           <Tabs defaultValue="edit">
             <TabsList className="mb-4">
-              <TabsTrigger value="edit">Éditer</TabsTrigger>
-              <TabsTrigger value="preview">Aperçu</TabsTrigger>
+              <TabsTrigger value="edit">Editer</TabsTrigger>
+              <TabsTrigger value="preview">Apercu</TabsTrigger>
             </TabsList>
             <TabsContent value="edit">
               <Textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="Notes détaillées de la session..."
+                placeholder="Notes detaillees de la session..."
                 rows={15}
                 className="font-mono"
               />
