@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
-import type { ChatMessageRecord, ReactionEmoji } from '@/lib/actions/chat'
+import type { ChatMessageRecord, ReactionEmoji } from '@/lib/chat-types'
 import { EmojiReactionPicker } from './EmojiReactionPicker'
 import { ReactionDisplay } from './ReactionDisplay'
 import { Dices, Lock, AlertCircle, Crown, Pin, Reply, MoreHorizontal, Eye, UserCircle } from 'lucide-react'

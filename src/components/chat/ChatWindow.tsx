@@ -13,12 +13,14 @@ import {
   addReaction,
   removeReaction,
   pinMessage,
-  unpinMessage,
-  type ChatMessageRecord,
-  type ReplyInfo,
-  type ReactionEmoji,
-  type ReactionRecord
+  unpinMessage
 } from '@/lib/actions/chat'
+import type {
+  ChatMessageRecord,
+  ReplyInfo,
+  ReactionEmoji,
+  ReactionRecord
+} from '@/lib/chat-types'
 import { MessageSquare, Wifi, WifiOff } from 'lucide-react'
 
 interface TypingUser {

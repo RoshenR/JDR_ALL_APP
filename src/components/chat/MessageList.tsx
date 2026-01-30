@@ -5,7 +5,7 @@ import { MessageBubble } from './MessageBubble'
 import { TypingIndicator } from './TypingIndicator'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
-import type { ChatMessageRecord, ReactionEmoji } from '@/lib/actions/chat'
+import type { ChatMessageRecord, ReactionEmoji } from '@/lib/chat-types'
 import { ChevronUp } from 'lucide-react'
 
 interface TypingUser {

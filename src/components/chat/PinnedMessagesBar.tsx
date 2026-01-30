@@ -8,7 +8,7 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
 import { Pin, ChevronDown, ChevronUp, X } from 'lucide-react'
-import { type ChatMessageRecord } from '@/lib/actions/chat'
+import type { ChatMessageRecord } from '@/lib/chat-types'
 import { cn } from '@/lib/utils'
 
 interface PinnedMessagesBarProps {

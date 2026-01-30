@@ -7,7 +7,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { REACTION_EMOJIS, type ReactionEmoji, type ReactionRecord } from '@/lib/actions/chat'
+import { REACTION_EMOJIS, type ReactionEmoji, type ReactionRecord } from '@/lib/chat-types'
 import { cn } from '@/lib/utils'
 
 interface ReactionDisplayProps {

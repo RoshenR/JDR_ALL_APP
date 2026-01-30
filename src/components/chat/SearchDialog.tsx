@@ -11,7 +11,8 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { Search, Loader2 } from 'lucide-react'
-import { searchMessages, type ChatMessageRecord } from '@/lib/actions/chat'
+import { searchMessages } from '@/lib/actions/chat'
+import type { ChatMessageRecord } from '@/lib/chat-types'
 import { cn } from '@/lib/utils'
 
 interface SearchDialogProps {

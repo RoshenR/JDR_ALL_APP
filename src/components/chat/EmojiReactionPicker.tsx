@@ -8,7 +8,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { SmilePlus } from 'lucide-react'
-import { REACTION_EMOJIS, type ReactionEmoji } from '@/lib/actions/chat'
+import { REACTION_EMOJIS, type ReactionEmoji } from '@/lib/chat-types'
 import { cn } from '@/lib/utils'
 
 interface EmojiReactionPickerProps {

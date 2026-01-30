@@ -30,7 +30,12 @@
       "Bash(npx prisma db pull:*)",
       "Bash(ping:*)",
       "Bash(powershell -Command \"Test-NetConnection -ComputerName ep-shiny-union-agovlcgy-pooler.c-2.eu-central-1.aws.neon.tech -Port 5432\":*)",
-      "Bash(npx prisma validate:*)"
+      "Bash(npx prisma validate:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push)",
+      "Bash(npm run lint:*)",
+      "Bash(git push:*)"
     ]
   }
 }
