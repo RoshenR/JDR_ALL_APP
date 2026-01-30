@@ -12,23 +12,29 @@ import {
 } from '@/components/ui/dialog'
 import { Search, Loader2 } from 'lucide-react'
 import { searchMessages } from '@/lib/actions/chat'
+import { searchGroupMessages } from '@/lib/actions/groups'
 import type { ChatMessageRecord } from '@/lib/chat-types'
+import type { GroupMessageRecord } from '@/lib/group-types'
 import { cn } from '@/lib/utils'
 
+type SearchResult = ChatMessageRecord | GroupMessageRecord
+
 interface SearchDialogProps {
-  campaignId: string
+  campaignId?: string
+  groupId?: string
   onSelectMessage?: (messageId: string) => void
   className?: string
 }
 
 export function SearchDialog({
   campaignId,
+  groupId,
   onSelectMessage,
   className
 }: SearchDialogProps) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
-  const [results, setResults] = useState<ChatMessageRecord[]>([])
+  const [results, setResults] = useState<SearchResult[]>([])
   const [loading, setLoading] = useState(false)
   const [searched, setSearched] = useState(false)
 
@@ -38,12 +44,17 @@ export function SearchDialog({
     setLoading(true)
     setSearched(true)
     try {
-      const messages = await searchMessages(campaignId, query)
-      setResults(messages)
+      if (groupId) {
+        const messages = await searchGroupMessages(groupId, query)
+        setResults(messages)
+      } else if (campaignId) {
+        const messages = await searchMessages(campaignId, query)
+        setResults(messages)
+      }
     } finally {
       setLoading(false)
     }
-  }, [campaignId, query])
+  }, [campaignId, groupId, query])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {

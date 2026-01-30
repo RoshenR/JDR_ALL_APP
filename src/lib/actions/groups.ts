@@ -5,44 +5,7 @@ import { prisma } from '@/lib/db'
 import { getCurrentUser } from './auth'
 import { triggerPusherEvent, getGroupChannel } from '@/lib/pusher/server'
 import { rollFormula, isValidDiceFormula } from '@/lib/dice-parser'
-
-export type MemberRole = 'admin' | 'member'
-
-export interface GroupRecord {
-  id: string
-  name: string
-  description: string | null
-  iconUrl: string | null
-  color: string | null
-  createdById: string
-  createdAt: Date
-  updatedAt: Date
-  memberCount?: number
-  isAdmin?: boolean
-}
-
-export interface GroupMemberRecord {
-  id: string
-  userId: string
-  userName: string
-  userEmail: string
-  role: MemberRole
-  joinedAt: Date
-}
-
-export interface GroupMessageRecord {
-  id: string
-  content: string
-  messageType: 'text' | 'dice_roll' | 'system'
-  metadata: Record<string, unknown>
-  isDeleted: boolean
-  groupId: string
-  senderId: string
-  senderName: string
-  senderRole: 'MJ' | 'PLAYER'
-  senderColor: string | null
-  createdAt: Date
-}
+import { REACTION_EMOJIS, type ReactionEmoji, type GroupMessageRecord, type GroupRecord, type GroupMemberRecord, type MemberRole } from '@/lib/group-types'
 
 // Créer un groupe
 export async function createGroup(data: {
@@ -468,10 +431,55 @@ export async function searchUsers(query: string, groupId?: string): Promise<Arra
   return users
 }
 
+// Helper to format group message record
+function formatGroupMessageRecord(message: {
+  id: string
+  content: string
+  messageType: string
+  metadata: string
+  isDeleted: boolean
+  groupId: string | null
+  senderId: string
+  createdAt: Date
+  sender: { name: string; role: string; chatColor: string | null }
+  replyTo: { id: string; content: string; sender: { name: string } } | null
+  reactions: Array<{ id: string; emoji: string; userId: string; user: { name: string } }>
+  pinnedMessage: { id: string } | null
+}, defaultGroupId: string): GroupMessageRecord {
+  return {
+    id: message.id,
+    content: message.content,
+    messageType: message.messageType as 'text' | 'dice_roll' | 'system',
+    metadata: JSON.parse(message.metadata),
+    isDeleted: message.isDeleted,
+    groupId: message.groupId ?? defaultGroupId,
+    senderId: message.senderId,
+    senderName: message.sender.name,
+    senderRole: message.sender.role as 'MJ' | 'PLAYER',
+    senderColor: message.sender.chatColor,
+    replyTo: message.replyTo
+      ? {
+          id: message.replyTo.id,
+          content: message.replyTo.content,
+          senderName: message.replyTo.sender.name
+        }
+      : null,
+    isPinned: !!message.pinnedMessage,
+    reactions: message.reactions.map(r => ({
+      id: r.id,
+      emoji: r.emoji as ReactionEmoji,
+      userId: r.userId,
+      userName: r.user.name
+    })),
+    createdAt: message.createdAt
+  }
+}
+
 // Envoyer un message dans un groupe
 export async function sendGroupMessage(data: {
   groupId: string
   content: string
+  replyToId?: string
 }): Promise<{ success: true; message: GroupMessageRecord } | { success: false; error: string }> {
   const user = await getCurrentUser()
   if (!user) {
@@ -507,26 +515,26 @@ export async function sendGroupMessage(data: {
       content: data.content,
       messageType: 'text',
       groupId: data.groupId,
-      senderId: user.id
+      senderId: user.id,
+      replyToId: data.replyToId || null
     },
     include: {
-      sender: { select: { name: true, role: true, chatColor: true } }
+      sender: { select: { name: true, role: true, chatColor: true } },
+      replyTo: {
+        select: {
+          id: true,
+          content: true,
+          sender: { select: { name: true } }
+        }
+      },
+      reactions: {
+        include: { user: { select: { name: true } } }
+      },
+      pinnedMessage: true
     }
   })
 
-  const messageRecord: GroupMessageRecord = {
-    id: message.id,
-    content: message.content,
-    messageType: message.messageType as 'text' | 'dice_roll' | 'system',
-    metadata: JSON.parse(message.metadata),
-    isDeleted: message.isDeleted,
-    groupId: data.groupId,
-    senderId: message.senderId,
-    senderName: message.sender.name,
-    senderRole: message.sender.role as 'MJ' | 'PLAYER',
-    senderColor: message.sender.chatColor,
-    createdAt: message.createdAt
-  }
+  const messageRecord = formatGroupMessageRecord(message, data.groupId)
 
   // Broadcast via Pusher
   try {
@@ -583,23 +591,22 @@ async function sendGroupDiceRollMessage(data: {
       senderId: user.id
     },
     include: {
-      sender: { select: { name: true, role: true, chatColor: true } }
+      sender: { select: { name: true, role: true, chatColor: true } },
+      replyTo: {
+        select: {
+          id: true,
+          content: true,
+          sender: { select: { name: true } }
+        }
+      },
+      reactions: {
+        include: { user: { select: { name: true } } }
+      },
+      pinnedMessage: true
     }
   })
 
-  const messageRecord: GroupMessageRecord = {
-    id: message.id,
-    content: message.content,
-    messageType: message.messageType as 'text' | 'dice_roll' | 'system',
-    metadata,
-    isDeleted: message.isDeleted,
-    groupId: data.groupId,
-    senderId: message.senderId,
-    senderName: message.sender.name,
-    senderRole: message.sender.role as 'MJ' | 'PLAYER',
-    senderColor: message.sender.chatColor,
-    createdAt: message.createdAt
-  }
+  const messageRecord = formatGroupMessageRecord(message, data.groupId)
 
   // Broadcast via Pusher
   try {
@@ -647,25 +654,321 @@ export async function getGroupMessages(
       ...(options?.before ? { id: { lt: options.before } } : {})
     },
     include: {
-      sender: { select: { name: true, role: true, chatColor: true } }
+      sender: { select: { name: true, role: true, chatColor: true } },
+      replyTo: {
+        select: {
+          id: true,
+          content: true,
+          sender: { select: { name: true } }
+        }
+      },
+      reactions: {
+        include: { user: { select: { name: true } } }
+      },
+      pinnedMessage: true
     },
     orderBy: { createdAt: 'desc' },
     take: limit
   })
 
-  return messages.reverse().map(message => ({
-    id: message.id,
-    content: message.content,
-    messageType: message.messageType as 'text' | 'dice_roll' | 'system',
-    metadata: JSON.parse(message.metadata),
-    isDeleted: message.isDeleted,
-    groupId: groupId,
-    senderId: message.senderId,
-    senderName: message.sender.name,
-    senderRole: message.sender.role as 'MJ' | 'PLAYER',
-    senderColor: message.sender.chatColor,
-    createdAt: message.createdAt
-  }))
+  return messages.reverse().map(m => formatGroupMessageRecord(m, groupId))
+}
+
+// ============ GROUP REACTIONS ============
+
+export async function addGroupReaction(
+  messageId: string,
+  emoji: ReactionEmoji
+): Promise<{ success: boolean; error?: string }> {
+  const user = await getCurrentUser()
+  if (!user) {
+    return { success: false, error: 'Non authentifié' }
+  }
+
+  if (!REACTION_EMOJIS[emoji]) {
+    return { success: false, error: 'Emoji invalide' }
+  }
+
+  const message = await prisma.chatMessage.findUnique({
+    where: { id: messageId },
+    select: { groupId: true }
+  })
+
+  if (!message || !message.groupId) {
+    return { success: false, error: 'Message non trouvé' }
+  }
+
+  // Vérifier que l'utilisateur est membre du groupe
+  const membership = await prisma.chatGroupMember.findUnique({
+    where: {
+      groupId_userId: { groupId: message.groupId, userId: user.id }
+    }
+  })
+
+  if (!membership) {
+    return { success: false, error: 'Non membre du groupe' }
+  }
+
+  try {
+    const reaction = await prisma.messageReaction.create({
+      data: {
+        emoji,
+        messageId,
+        userId: user.id
+      },
+      include: {
+        user: { select: { name: true } }
+      }
+    })
+
+    // Broadcast via Pusher
+    await triggerPusherEvent(getGroupChannel(message.groupId), 'reaction-added', {
+      messageId,
+      reaction: {
+        id: reaction.id,
+        emoji,
+        userId: user.id,
+        userName: reaction.user.name
+      }
+    })
+
+    return { success: true }
+  } catch {
+    return { success: false, error: 'Réaction déjà existante' }
+  }
+}
+
+export async function removeGroupReaction(
+  messageId: string,
+  emoji: ReactionEmoji
+): Promise<{ success: boolean; error?: string }> {
+  const user = await getCurrentUser()
+  if (!user) {
+    return { success: false, error: 'Non authentifié' }
+  }
+
+  const message = await prisma.chatMessage.findUnique({
+    where: { id: messageId },
+    select: { groupId: true }
+  })
+
+  if (!message || !message.groupId) {
+    return { success: false, error: 'Message non trouvé' }
+  }
+
+  await prisma.messageReaction.deleteMany({
+    where: {
+      messageId,
+      userId: user.id,
+      emoji
+    }
+  })
+
+  // Broadcast via Pusher
+  await triggerPusherEvent(getGroupChannel(message.groupId), 'reaction-removed', {
+    messageId,
+    emoji,
+    userId: user.id
+  })
+
+  return { success: true }
+}
+
+// ============ GROUP PINNED MESSAGES ============
+
+export async function pinGroupMessage(messageId: string): Promise<{ success: boolean; error?: string }> {
+  const user = await getCurrentUser()
+  if (!user) {
+    return { success: false, error: 'Non authentifié' }
+  }
+
+  const message = await prisma.chatMessage.findUnique({
+    where: { id: messageId },
+    include: { pinnedMessage: true }
+  })
+
+  if (!message || !message.groupId) {
+    return { success: false, error: 'Message non trouvé' }
+  }
+
+  // Vérifier que l'utilisateur est admin du groupe
+  const membership = await prisma.chatGroupMember.findUnique({
+    where: {
+      groupId_userId: { groupId: message.groupId, userId: user.id }
+    }
+  })
+
+  if (!membership || membership.role !== 'admin') {
+    return { success: false, error: 'Seuls les admins peuvent épingler' }
+  }
+
+  if (message.pinnedMessage) {
+    return { success: false, error: 'Message déjà épinglé' }
+  }
+
+  await prisma.pinnedMessage.create({
+    data: {
+      messageId,
+      pinnedById: user.id
+    }
+  })
+
+  // Broadcast via Pusher
+  await triggerPusherEvent(getGroupChannel(message.groupId), 'message-pinned', {
+    messageId
+  })
+
+  return { success: true }
+}
+
+export async function unpinGroupMessage(messageId: string): Promise<{ success: boolean; error?: string }> {
+  const user = await getCurrentUser()
+  if (!user) {
+    return { success: false, error: 'Non authentifié' }
+  }
+
+  const message = await prisma.chatMessage.findUnique({
+    where: { id: messageId },
+    select: { groupId: true }
+  })
+
+  if (!message || !message.groupId) {
+    return { success: false, error: 'Message non trouvé' }
+  }
+
+  // Vérifier que l'utilisateur est admin du groupe
+  const membership = await prisma.chatGroupMember.findUnique({
+    where: {
+      groupId_userId: { groupId: message.groupId, userId: user.id }
+    }
+  })
+
+  if (!membership || membership.role !== 'admin') {
+    return { success: false, error: 'Seuls les admins peuvent désépingler' }
+  }
+
+  await prisma.pinnedMessage.deleteMany({
+    where: { messageId }
+  })
+
+  // Broadcast via Pusher
+  await triggerPusherEvent(getGroupChannel(message.groupId), 'message-unpinned', {
+    messageId
+  })
+
+  return { success: true }
+}
+
+export async function getGroupPinnedMessages(groupId: string): Promise<GroupMessageRecord[]> {
+  const user = await getCurrentUser()
+  if (!user) return []
+
+  const membership = await prisma.chatGroupMember.findUnique({
+    where: {
+      groupId_userId: { groupId, userId: user.id }
+    }
+  })
+
+  if (!membership) return []
+
+  const pinnedMessages = await prisma.pinnedMessage.findMany({
+    where: {
+      message: { groupId }
+    },
+    include: {
+      message: {
+        include: {
+          sender: { select: { name: true, role: true, chatColor: true } },
+          replyTo: {
+            select: {
+              id: true,
+              content: true,
+              sender: { select: { name: true } }
+            }
+          },
+          reactions: {
+            include: { user: { select: { name: true } } }
+          },
+          pinnedMessage: true
+        }
+      }
+    },
+    orderBy: { createdAt: 'desc' }
+  })
+
+  return pinnedMessages.map(pm => formatGroupMessageRecord(pm.message, groupId))
+}
+
+// ============ GROUP TYPING INDICATOR ============
+
+export async function broadcastGroupTyping(
+  groupId: string,
+  isTyping: boolean
+): Promise<{ success: boolean }> {
+  const user = await getCurrentUser()
+  if (!user) {
+    return { success: false }
+  }
+
+  try {
+    await triggerPusherEvent(getGroupChannel(groupId), 'typing-indicator', {
+      userId: user.id,
+      userName: user.name,
+      isTyping
+    })
+    return { success: true }
+  } catch {
+    return { success: false }
+  }
+}
+
+// ============ GROUP SEARCH ============
+
+export async function searchGroupMessages(
+  groupId: string,
+  query: string
+): Promise<GroupMessageRecord[]> {
+  const user = await getCurrentUser()
+  if (!user) return []
+
+  if (!query.trim()) return []
+
+  const membership = await prisma.chatGroupMember.findUnique({
+    where: {
+      groupId_userId: { groupId, userId: user.id }
+    }
+  })
+
+  if (!membership) return []
+
+  const messages = await prisma.chatMessage.findMany({
+    where: {
+      groupId,
+      isDeleted: false,
+      content: {
+        contains: query,
+        mode: 'insensitive'
+      }
+    },
+    include: {
+      sender: { select: { name: true, role: true, chatColor: true } },
+      replyTo: {
+        select: {
+          id: true,
+          content: true,
+          sender: { select: { name: true } }
+        }
+      },
+      reactions: {
+        include: { user: { select: { name: true } } }
+      },
+      pinnedMessage: true
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 50
+  })
+
+  return messages.map(m => formatGroupMessageRecord(m, groupId))
 }
 
 // Supprimer un message de groupe

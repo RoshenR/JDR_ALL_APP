@@ -5,12 +5,13 @@ import { getGroup, getGroupMessages } from '@/lib/actions/groups'
 import { getCurrentUser } from '@/lib/actions/auth'
 
 interface PageProps {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }
 
 export default async function GroupChatPage({ params }: PageProps) {
+  const { id } = await params
   const [group, user] = await Promise.all([
-    getGroup(params.id),
+    getGroup(id),
     getCurrentUser()
   ])
 
@@ -22,7 +23,7 @@ export default async function GroupChatPage({ params }: PageProps) {
     notFound()
   }
 
-  const messages = await getGroupMessages(params.id, { limit: 100 })
+  const messages = await getGroupMessages(id, { limit: 100 })
 
   return (
     <>

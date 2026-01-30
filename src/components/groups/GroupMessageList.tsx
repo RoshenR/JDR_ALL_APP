@@ -2,26 +2,45 @@
 
 import { useRef, useEffect } from 'react'
 import { GroupMessageBubble } from './GroupMessageBubble'
+import { TypingIndicator } from '@/components/chat/TypingIndicator'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
-import type { GroupMessageRecord } from '@/lib/actions/groups'
+import type { GroupMessageRecord, ReactionEmoji } from '@/lib/group-types'
 import { ChevronUp } from 'lucide-react'
+
+interface TypingUser {
+  userId: string
+  userName: string
+}
 
 interface GroupMessageListProps {
   messages: GroupMessageRecord[]
   currentUserId: string
-  currentUserRole: string
+  isAdmin?: boolean
+  typingUsers?: TypingUser[]
   onLoadMore?: () => void
+  onReply?: (message: GroupMessageRecord) => void
+  onPin?: (messageId: string) => void
+  onUnpin?: (messageId: string) => void
+  onReaction?: (messageId: string, emoji: ReactionEmoji, remove: boolean) => void
+  highlightedMessageId?: string
 }
 
 export function GroupMessageList({
   messages,
   currentUserId,
-  currentUserRole,
-  onLoadMore
+  isAdmin,
+  typingUsers = [],
+  onLoadMore,
+  onReply,
+  onPin,
+  onUnpin,
+  onReaction,
+  highlightedMessageId
 }: GroupMessageListProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map())
 
   useEffect(() => {
     if (bottomRef.current) {
@@ -29,7 +48,19 @@ export function GroupMessageList({
     }
   }, [messages.length])
 
-  const isMJ = currentUserRole === 'MJ'
+  // Scroll to highlighted message
+  useEffect(() => {
+    if (highlightedMessageId) {
+      const element = messageRefs.current.get(highlightedMessageId)
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        element.classList.add('animate-pulse', 'bg-primary/10')
+        setTimeout(() => {
+          element.classList.remove('animate-pulse', 'bg-primary/10')
+        }, 2000)
+      }
+    }
+  }, [highlightedMessageId])
 
   return (
     <div className="flex-1 overflow-hidden">
@@ -56,15 +87,32 @@ export function GroupMessageList({
             </div>
           ) : (
             messages.map((message) => (
-              <GroupMessageBubble
+              <div
                 key={message.id}
-                message={message}
-                isOwn={message.senderId === currentUserId}
-                isMJ={isMJ}
-              />
+                ref={(el) => {
+                  if (el) {
+                    messageRefs.current.set(message.id, el)
+                  }
+                }}
+                className="transition-colors rounded-lg"
+              >
+                <GroupMessageBubble
+                  message={message}
+                  isOwn={message.senderId === currentUserId}
+                  isAdmin={isAdmin}
+                  currentUserId={currentUserId}
+                  onReply={onReply}
+                  onPin={onPin}
+                  onUnpin={onUnpin}
+                  onReaction={onReaction}
+                />
+              </div>
             ))
           )}
         </div>
+
+        {/* Typing indicator */}
+        <TypingIndicator typingUsers={typingUsers} className="mt-2" />
 
         <div ref={bottomRef} />
       </ScrollArea>
