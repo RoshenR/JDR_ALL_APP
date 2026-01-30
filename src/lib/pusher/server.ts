@@ -25,6 +25,11 @@ export type PusherEventType =
   | 'loot-update'
   | 'member-added'
   | 'member-removed'
+  | 'reaction-added'
+  | 'reaction-removed'
+  | 'message-pinned'
+  | 'message-unpinned'
+  | 'typing-indicator'
 
 // Fonction helper pour trigger des événements
 export async function triggerPusherEvent(

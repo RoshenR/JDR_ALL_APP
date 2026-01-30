@@ -8,6 +8,37 @@ import { rollFormula, isValidDiceFormula } from '@/lib/dice-parser'
 
 export type MessageType = 'text' | 'dice_roll' | 'system'
 
+// Emoji types for reactions
+export const REACTION_EMOJIS = {
+  thumbs_up: '👍',
+  laugh: '😂',
+  skull: '💀',
+  sword: '⚔️',
+  fire: '🔥',
+  heart: '❤️'
+} as const
+
+export type ReactionEmoji = keyof typeof REACTION_EMOJIS
+
+export interface ReactionRecord {
+  id: string
+  emoji: ReactionEmoji
+  userId: string
+  userName: string
+}
+
+export interface ReplyInfo {
+  id: string
+  content: string
+  senderName: string
+}
+
+export interface CharacterInfo {
+  id: string
+  name: string
+  imageUrl: string | null
+}
+
 export interface ChatMessageRecord {
   id: string
   content: string
@@ -21,14 +52,22 @@ export interface ChatMessageRecord {
   senderColor: string | null
   recipientId: string | null
   recipientName: string | null
+  replyTo: ReplyInfo | null
+  character: CharacterInfo | null
+  isSecret: boolean
+  isPinned: boolean
+  reactions: ReactionRecord[]
   createdAt: Date
 }
 
-// Envoyer un message
+// Envoyer un message avec nouvelles options
 export async function sendMessage(data: {
   campaignId: string
   content: string
-  recipientId?: string // null = message groupe
+  recipientId?: string
+  replyToId?: string
+  characterId?: string
+  isSecret?: boolean
 }): Promise<{ success: true; message: ChatMessageRecord } | { success: false; error: string }> {
   const user = await getCurrentUser()
   if (!user) {
@@ -39,23 +78,34 @@ export async function sendMessage(data: {
     return { success: false, error: 'Message vide' }
   }
 
+  // Only MJ can send secret messages
+  if (data.isSecret && user.role !== 'MJ') {
+    return { success: false, error: 'Seul le MJ peut envoyer des messages secrets' }
+  }
+
   // Vérifier si c'est une commande /roll
   if (data.content.startsWith('/roll ') || data.content.startsWith('/r ')) {
     const formula = data.content.replace(/^\/(roll|r)\s+/, '').trim()
     return sendDiceRollMessage({
       campaignId: data.campaignId,
       formula,
-      recipientId: data.recipientId
+      recipientId: data.recipientId,
+      characterId: data.characterId
     })
   }
 
-  // Récupérer le destinataire si message privé
-  let recipient = null
-  if (data.recipientId) {
-    recipient = await prisma.user.findUnique({
-      where: { id: data.recipientId },
-      select: { id: true, name: true }
+  // Validate character belongs to user if provided
+  if (data.characterId) {
+    const character = await prisma.character.findFirst({
+      where: {
+        id: data.characterId,
+        ownerId: user.id,
+        campaignId: data.campaignId
+      }
     })
+    if (!character) {
+      return { success: false, error: 'Personnage invalide' }
+    }
   }
 
   const message = await prisma.chatMessage.create({
@@ -64,51 +114,48 @@ export async function sendMessage(data: {
       messageType: 'text',
       campaignId: data.campaignId,
       senderId: user.id,
-      recipientId: data.recipientId || null
+      recipientId: data.recipientId || null,
+      replyToId: data.replyToId || null,
+      characterId: data.characterId || null,
+      isSecret: data.isSecret || false
     },
     include: {
       sender: { select: { name: true, role: true, chatColor: true } },
-      recipient: { select: { name: true } }
+      recipient: { select: { name: true } },
+      replyTo: {
+        select: {
+          id: true,
+          content: true,
+          sender: { select: { name: true } }
+        }
+      },
+      character: { select: { id: true, name: true, imageUrl: true } },
+      reactions: {
+        include: { user: { select: { name: true } } }
+      },
+      pinnedMessage: true
     }
   })
 
-  const messageRecord: ChatMessageRecord = {
-    id: message.id,
-    content: message.content,
-    messageType: message.messageType as MessageType,
-    metadata: JSON.parse(message.metadata),
-    isDeleted: message.isDeleted,
-    campaignId: message.campaignId ?? data.campaignId,
-    senderId: message.senderId,
-    senderName: message.sender.name,
-    senderRole: message.sender.role as 'MJ' | 'PLAYER',
-    senderColor: message.sender.chatColor,
-    recipientId: message.recipientId,
-    recipientName: message.recipient?.name || null,
-    createdAt: message.createdAt
-  }
+  const messageRecord = formatMessageRecord(message, data.campaignId)
 
   // Broadcast via Pusher
   try {
-    if (data.recipientId) {
-      // Message privé - envoyer au canal de la campagne (MJ verra)
-      // et au canal privé du destinataire
+    const pusherData = {
+      ...messageRecord,
+      createdAt: messageRecord.createdAt.toISOString()
+    }
+
+    if (data.recipientId || data.isSecret) {
+      // Private or secret message
       await Promise.all([
-        triggerPusherEvent(getCampaignChannel(data.campaignId), 'chat-message', {
-          ...messageRecord,
-          createdAt: messageRecord.createdAt.toISOString()
-        }),
-        triggerPusherEvent(getPrivateChannel(data.recipientId), 'chat-message', {
-          ...messageRecord,
-          createdAt: messageRecord.createdAt.toISOString()
-        })
+        triggerPusherEvent(getCampaignChannel(data.campaignId), 'chat-message', pusherData),
+        ...(data.recipientId
+          ? [triggerPusherEvent(getPrivateChannel(data.recipientId), 'chat-message', pusherData)]
+          : [])
       ])
     } else {
-      // Message groupe
-      await triggerPusherEvent(getCampaignChannel(data.campaignId), 'chat-message', {
-        ...messageRecord,
-        createdAt: messageRecord.createdAt.toISOString()
-      })
+      await triggerPusherEvent(getCampaignChannel(data.campaignId), 'chat-message', pusherData)
     }
   } catch {
     console.error('Erreur Pusher (non bloquante)')
@@ -123,6 +170,7 @@ export async function sendDiceRollMessage(data: {
   campaignId: string
   formula: string
   recipientId?: string
+  characterId?: string
 }): Promise<{ success: true; message: ChatMessageRecord } | { success: false; error: string }> {
   const user = await getCurrentUser()
   if (!user) {
@@ -152,29 +200,28 @@ export async function sendDiceRollMessage(data: {
       metadata: JSON.stringify(metadata),
       campaignId: data.campaignId,
       senderId: user.id,
-      recipientId: data.recipientId || null
+      recipientId: data.recipientId || null,
+      characterId: data.characterId || null
     },
     include: {
       sender: { select: { name: true, role: true, chatColor: true } },
-      recipient: { select: { name: true } }
+      recipient: { select: { name: true } },
+      replyTo: {
+        select: {
+          id: true,
+          content: true,
+          sender: { select: { name: true } }
+        }
+      },
+      character: { select: { id: true, name: true, imageUrl: true } },
+      reactions: {
+        include: { user: { select: { name: true } } }
+      },
+      pinnedMessage: true
     }
   })
 
-  const messageRecord: ChatMessageRecord = {
-    id: message.id,
-    content: message.content,
-    messageType: message.messageType as MessageType,
-    metadata,
-    isDeleted: message.isDeleted,
-    campaignId: message.campaignId ?? data.campaignId,
-    senderId: message.senderId,
-    senderName: message.sender.name,
-    senderRole: message.sender.role as 'MJ' | 'PLAYER',
-    senderColor: message.sender.chatColor,
-    recipientId: message.recipientId,
-    recipientName: message.recipient?.name || null,
-    createdAt: message.createdAt
-  }
+  const messageRecord = formatMessageRecord(message, data.campaignId)
 
   // Broadcast via Pusher
   try {
@@ -195,7 +242,6 @@ export async function sendSystemMessage(data: {
   campaignId: string
   content: string
 }): Promise<void> {
-  // Les messages système utilisent un userId système ou le premier MJ
   const mj = await prisma.user.findFirst({
     where: { role: 'MJ' }
   })
@@ -223,10 +269,74 @@ export async function sendSystemMessage(data: {
       senderRole: 'MJ',
       senderColor: null,
       recipientId: null,
+      recipientName: null,
+      replyTo: null,
+      character: null,
+      isSecret: false,
+      isPinned: false,
+      reactions: [],
       createdAt: new Date().toISOString()
     })
   } catch {
     console.error('Erreur Pusher (non bloquante)')
+  }
+}
+
+// Helper to format message record
+function formatMessageRecord(message: {
+  id: string
+  content: string
+  messageType: string
+  metadata: string
+  isDeleted: boolean
+  campaignId: string | null
+  senderId: string
+  recipientId: string | null
+  isSecret: boolean
+  createdAt: Date
+  sender: { name: string; role: string; chatColor: string | null }
+  recipient: { name: string } | null
+  replyTo: { id: string; content: string; sender: { name: string } } | null
+  character: { id: string; name: string; imageUrl: string | null } | null
+  reactions: Array<{ id: string; emoji: string; userId: string; user: { name: string } }>
+  pinnedMessage: { id: string } | null
+}, defaultCampaignId: string): ChatMessageRecord {
+  return {
+    id: message.id,
+    content: message.content,
+    messageType: message.messageType as MessageType,
+    metadata: JSON.parse(message.metadata),
+    isDeleted: message.isDeleted,
+    campaignId: message.campaignId ?? defaultCampaignId,
+    senderId: message.senderId,
+    senderName: message.sender.name,
+    senderRole: message.sender.role as 'MJ' | 'PLAYER',
+    senderColor: message.sender.chatColor,
+    recipientId: message.recipientId,
+    recipientName: message.recipient?.name || null,
+    replyTo: message.replyTo
+      ? {
+          id: message.replyTo.id,
+          content: message.replyTo.content,
+          senderName: message.replyTo.sender.name
+        }
+      : null,
+    character: message.character
+      ? {
+          id: message.character.id,
+          name: message.character.name,
+          imageUrl: message.character.imageUrl
+        }
+      : null,
+    isSecret: message.isSecret,
+    isPinned: !!message.pinnedMessage,
+    reactions: message.reactions.map(r => ({
+      id: r.id,
+      emoji: r.emoji as ReactionEmoji,
+      userId: r.userId,
+      userName: r.user.name
+    })),
+    createdAt: message.createdAt
   }
 }
 
@@ -245,44 +355,346 @@ export async function getCampaignMessages(
     where: {
       campaignId,
       isDeleted: false,
-      // Si pas MJ, ne voir que les messages de groupe ou ceux où on est impliqué
       ...(isMJ
         ? {}
         : {
             OR: [
-              { recipientId: null }, // Messages groupe
-              { senderId: user.id }, // Messages qu'on a envoyés
-              { recipientId: user.id } // Messages qu'on a reçus
+              { recipientId: null, isSecret: false },
+              { senderId: user.id },
+              { recipientId: user.id }
             ]
           }),
       ...(options?.before ? { id: { lt: options.before } } : {})
     },
     include: {
       sender: { select: { name: true, role: true, chatColor: true } },
-      recipient: { select: { name: true } }
+      recipient: { select: { name: true } },
+      replyTo: {
+        select: {
+          id: true,
+          content: true,
+          sender: { select: { name: true } }
+        }
+      },
+      character: { select: { id: true, name: true, imageUrl: true } },
+      reactions: {
+        include: { user: { select: { name: true } } }
+      },
+      pinnedMessage: true
     },
     orderBy: { createdAt: 'desc' },
     take: limit
   })
 
-  return messages.reverse().map(message => ({
-    id: message.id,
-    content: message.content,
-    messageType: message.messageType as MessageType,
-    metadata: JSON.parse(message.metadata),
-    isDeleted: message.isDeleted,
-    campaignId: message.campaignId ?? campaignId,
-    senderId: message.senderId,
-    senderName: message.sender.name,
-    senderRole: message.sender.role as 'MJ' | 'PLAYER',
-    senderColor: message.sender.chatColor,
-    recipientId: message.recipientId,
-    recipientName: message.recipient?.name || null,
-    createdAt: message.createdAt
-  }))
+  return messages.reverse().map(m => formatMessageRecord(m, campaignId))
 }
 
-// Supprimer un message (soft delete)
+// ============ REACTIONS ============
+
+export async function addReaction(
+  messageId: string,
+  emoji: ReactionEmoji
+): Promise<{ success: boolean; error?: string }> {
+  const user = await getCurrentUser()
+  if (!user) {
+    return { success: false, error: 'Non authentifié' }
+  }
+
+  if (!REACTION_EMOJIS[emoji]) {
+    return { success: false, error: 'Emoji invalide' }
+  }
+
+  const message = await prisma.chatMessage.findUnique({
+    where: { id: messageId },
+    select: { campaignId: true }
+  })
+
+  if (!message) {
+    return { success: false, error: 'Message non trouvé' }
+  }
+
+  try {
+    const reaction = await prisma.messageReaction.create({
+      data: {
+        emoji,
+        messageId,
+        userId: user.id
+      },
+      include: {
+        user: { select: { name: true } }
+      }
+    })
+
+    // Broadcast via Pusher
+    if (message.campaignId) {
+      await triggerPusherEvent(getCampaignChannel(message.campaignId), 'reaction-added', {
+        messageId,
+        reaction: {
+          id: reaction.id,
+          emoji,
+          userId: user.id,
+          userName: reaction.user.name
+        }
+      })
+    }
+
+    return { success: true }
+  } catch {
+    // Likely duplicate - user already reacted with this emoji
+    return { success: false, error: 'Réaction déjà existante' }
+  }
+}
+
+export async function removeReaction(
+  messageId: string,
+  emoji: ReactionEmoji
+): Promise<{ success: boolean; error?: string }> {
+  const user = await getCurrentUser()
+  if (!user) {
+    return { success: false, error: 'Non authentifié' }
+  }
+
+  const message = await prisma.chatMessage.findUnique({
+    where: { id: messageId },
+    select: { campaignId: true }
+  })
+
+  if (!message) {
+    return { success: false, error: 'Message non trouvé' }
+  }
+
+  await prisma.messageReaction.deleteMany({
+    where: {
+      messageId,
+      userId: user.id,
+      emoji
+    }
+  })
+
+  // Broadcast via Pusher
+  if (message.campaignId) {
+    await triggerPusherEvent(getCampaignChannel(message.campaignId), 'reaction-removed', {
+      messageId,
+      emoji,
+      userId: user.id
+    })
+  }
+
+  return { success: true }
+}
+
+// ============ PINNED MESSAGES ============
+
+export async function pinMessage(messageId: string): Promise<{ success: boolean; error?: string }> {
+  const user = await getCurrentUser()
+  if (!user) {
+    return { success: false, error: 'Non authentifié' }
+  }
+
+  if (user.role !== 'MJ') {
+    return { success: false, error: 'Seul le MJ peut épingler des messages' }
+  }
+
+  const message = await prisma.chatMessage.findUnique({
+    where: { id: messageId },
+    include: { pinnedMessage: true }
+  })
+
+  if (!message) {
+    return { success: false, error: 'Message non trouvé' }
+  }
+
+  if (message.pinnedMessage) {
+    return { success: false, error: 'Message déjà épinglé' }
+  }
+
+  await prisma.pinnedMessage.create({
+    data: {
+      messageId,
+      pinnedById: user.id,
+      campaignId: message.campaignId
+    }
+  })
+
+  // Broadcast via Pusher
+  if (message.campaignId) {
+    await triggerPusherEvent(getCampaignChannel(message.campaignId), 'message-pinned', {
+      messageId
+    })
+  }
+
+  return { success: true }
+}
+
+export async function unpinMessage(messageId: string): Promise<{ success: boolean; error?: string }> {
+  const user = await getCurrentUser()
+  if (!user) {
+    return { success: false, error: 'Non authentifié' }
+  }
+
+  if (user.role !== 'MJ') {
+    return { success: false, error: 'Seul le MJ peut désépingler des messages' }
+  }
+
+  const message = await prisma.chatMessage.findUnique({
+    where: { id: messageId },
+    select: { campaignId: true }
+  })
+
+  if (!message) {
+    return { success: false, error: 'Message non trouvé' }
+  }
+
+  await prisma.pinnedMessage.deleteMany({
+    where: { messageId }
+  })
+
+  // Broadcast via Pusher
+  if (message.campaignId) {
+    await triggerPusherEvent(getCampaignChannel(message.campaignId), 'message-unpinned', {
+      messageId
+    })
+  }
+
+  return { success: true }
+}
+
+export async function getPinnedMessages(campaignId: string): Promise<ChatMessageRecord[]> {
+  const user = await getCurrentUser()
+  if (!user) return []
+
+  const pinnedMessages = await prisma.pinnedMessage.findMany({
+    where: { campaignId },
+    include: {
+      message: {
+        include: {
+          sender: { select: { name: true, role: true, chatColor: true } },
+          recipient: { select: { name: true } },
+          replyTo: {
+            select: {
+              id: true,
+              content: true,
+              sender: { select: { name: true } }
+            }
+          },
+          character: { select: { id: true, name: true, imageUrl: true } },
+          reactions: {
+            include: { user: { select: { name: true } } }
+          },
+          pinnedMessage: true
+        }
+      }
+    },
+    orderBy: { createdAt: 'desc' }
+  })
+
+  return pinnedMessages.map(pm => formatMessageRecord(pm.message, campaignId))
+}
+
+// ============ SEARCH ============
+
+export async function searchMessages(
+  campaignId: string,
+  query: string
+): Promise<ChatMessageRecord[]> {
+  const user = await getCurrentUser()
+  if (!user) return []
+
+  if (!query.trim()) return []
+
+  const isMJ = user.role === 'MJ'
+
+  const messages = await prisma.chatMessage.findMany({
+    where: {
+      campaignId,
+      isDeleted: false,
+      content: {
+        contains: query,
+        mode: 'insensitive'
+      },
+      ...(isMJ
+        ? {}
+        : {
+            OR: [
+              { recipientId: null, isSecret: false },
+              { senderId: user.id },
+              { recipientId: user.id }
+            ]
+          })
+    },
+    include: {
+      sender: { select: { name: true, role: true, chatColor: true } },
+      recipient: { select: { name: true } },
+      replyTo: {
+        select: {
+          id: true,
+          content: true,
+          sender: { select: { name: true } }
+        }
+      },
+      character: { select: { id: true, name: true, imageUrl: true } },
+      reactions: {
+        include: { user: { select: { name: true } } }
+      },
+      pinnedMessage: true
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 50
+  })
+
+  return messages.map(m => formatMessageRecord(m, campaignId))
+}
+
+// ============ TYPING INDICATOR ============
+
+export async function broadcastTyping(
+  campaignId: string,
+  isTyping: boolean
+): Promise<{ success: boolean }> {
+  const user = await getCurrentUser()
+  if (!user) {
+    return { success: false }
+  }
+
+  try {
+    await triggerPusherEvent(getCampaignChannel(campaignId), 'typing-indicator', {
+      userId: user.id,
+      userName: user.name,
+      isTyping
+    })
+    return { success: true }
+  } catch {
+    return { success: false }
+  }
+}
+
+// ============ USER CHARACTERS FOR CHAT ============
+
+export async function getUserCharactersForChat(campaignId: string): Promise<Array<{
+  id: string
+  name: string
+  imageUrl: string | null
+}>> {
+  const user = await getCurrentUser()
+  if (!user) return []
+
+  const characters = await prisma.character.findMany({
+    where: {
+      campaignId,
+      ownerId: user.id
+    },
+    select: {
+      id: true,
+      name: true,
+      imageUrl: true
+    }
+  })
+
+  return characters
+}
+
+// ============ EXISTING FUNCTIONS ============
+
 export async function deleteMessage(messageId: string): Promise<{ success: boolean; error?: string }> {
   const user = await getCurrentUser()
   if (!user) {
@@ -297,7 +709,6 @@ export async function deleteMessage(messageId: string): Promise<{ success: boole
     return { success: false, error: 'Message non trouvé' }
   }
 
-  // Seul l'auteur ou le MJ peut supprimer
   if (message.senderId !== user.id && user.role !== 'MJ') {
     return { success: false, error: 'Non autorisé' }
   }
@@ -311,7 +722,6 @@ export async function deleteMessage(messageId: string): Promise<{ success: boole
   return { success: true }
 }
 
-// Mettre à jour la couleur du chat de l'utilisateur
 export async function updateChatColor(color: string | null): Promise<{ success: boolean; error?: string }> {
   const user = await getCurrentUser()
   if (!user) {
@@ -331,7 +741,6 @@ export async function updateChatColor(color: string | null): Promise<{ success: 
   return { success: true }
 }
 
-// Récupérer les participants d'une campagne pour les messages privés
 export async function getCampaignParticipants(campaignId: string): Promise<Array<{
   id: string
   name: string
@@ -340,8 +749,6 @@ export async function getCampaignParticipants(campaignId: string): Promise<Array
   const user = await getCurrentUser()
   if (!user) return []
 
-  // Récupérer tous les utilisateurs qui ont des personnages dans cette campagne
-  // ou qui sont MJ
   const characters = await prisma.character.findMany({
     where: { campaignId },
     include: {
@@ -353,7 +760,6 @@ export async function getCampaignParticipants(campaignId: string): Promise<Array
 
   const participants = new Map<string, { id: string; name: string; role: string }>()
 
-  // Ajouter les propriétaires de personnages
   for (const char of characters) {
     if (char.owner && char.owner.id !== user.id) {
       participants.set(char.owner.id, {
@@ -364,7 +770,6 @@ export async function getCampaignParticipants(campaignId: string): Promise<Array
     }
   }
 
-  // Ajouter tous les MJ
   const mjs = await prisma.user.findMany({
     where: { role: 'MJ', id: { not: user.id } },
     select: { id: true, name: true, role: true }

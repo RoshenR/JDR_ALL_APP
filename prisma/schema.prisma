@@ -22,6 +22,8 @@ model User {
   createdGroups    ChatGroup[]           @relation("GroupCreator")
   groupMemberships ChatGroupMember[]
   availabilities   SessionAvailability[]
+  reactions        MessageReaction[]
+  pinnedMessages   PinnedMessage[]
   createdAt        DateTime              @default(now())
   updatedAt        DateTime              @updatedAt
 }
@@ -47,6 +49,7 @@ model Character {
   owner          User?           @relation(fields: [ownerId], references: [id], onDelete: SetNull)
   characterNotes CharacterNote[]
   inventory      InventoryItem[]
+  chatMessages   ChatMessage[]
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
 }
@@ -238,7 +241,38 @@ model ChatMessage {
   sender      User       @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
   recipientId String? // NULL = message groupe, sinon = message privé
   recipient   User?      @relation("MessageRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  // New fields for chat features
+  replyToId   String? // Reference to parent message (reply)
+  replyTo     ChatMessage?  @relation("MessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies     ChatMessage[] @relation("MessageReplies")
+  characterId String? // Character ID for In-Character mode
+  character   Character?    @relation(fields: [characterId], references: [id], onDelete: SetNull)
+  isSecret    Boolean    @default(false) // Secret MJ message
+  reactions   MessageReaction[]
+  pinnedMessage PinnedMessage?
   createdAt   DateTime   @default(now())
+}
+
+model MessageReaction {
+  id        String      @id @default(cuid())
+  emoji     String      // "thumbs_up", "laugh", "skull", "sword", "fire", "heart"
+  messageId String
+  message   ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime    @default(now())
+
+  @@unique([messageId, userId, emoji])
+}
+
+model PinnedMessage {
+  id         String      @id @default(cuid())
+  messageId  String      @unique
+  message    ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  pinnedById String
+  pinnedBy   User        @relation(fields: [pinnedById], references: [id], onDelete: Cascade)
+  campaignId String?
+  createdAt  DateTime    @default(now())
 }
 
 // ============ QUESTS ============

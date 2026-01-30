@@ -2,26 +2,45 @@
 
 import { useRef, useEffect } from 'react'
 import { MessageBubble } from './MessageBubble'
+import { TypingIndicator } from './TypingIndicator'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
-import type { ChatMessageRecord } from '@/lib/actions/chat'
+import type { ChatMessageRecord, ReactionEmoji } from '@/lib/actions/chat'
 import { ChevronUp } from 'lucide-react'
+
+interface TypingUser {
+  userId: string
+  userName: string
+}
 
 interface MessageListProps {
   messages: ChatMessageRecord[]
   currentUserId: string
   currentUserRole: string
+  typingUsers?: TypingUser[]
   onLoadMore?: () => void
+  onReply?: (message: ChatMessageRecord) => void
+  onPin?: (messageId: string) => void
+  onUnpin?: (messageId: string) => void
+  onReaction?: (messageId: string, emoji: ReactionEmoji, remove: boolean) => void
+  highlightedMessageId?: string
 }
 
 export function MessageList({
   messages,
   currentUserId,
   currentUserRole,
-  onLoadMore
+  typingUsers = [],
+  onLoadMore,
+  onReply,
+  onPin,
+  onUnpin,
+  onReaction,
+  highlightedMessageId
 }: MessageListProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map())
 
   // Scroll vers le bas quand de nouveaux messages arrivent
   useEffect(() => {
@@ -29,6 +48,20 @@ export function MessageList({
       bottomRef.current.scrollIntoView({ behavior: 'smooth' })
     }
   }, [messages.length])
+
+  // Scroll to highlighted message
+  useEffect(() => {
+    if (highlightedMessageId) {
+      const element = messageRefs.current.get(highlightedMessageId)
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        element.classList.add('animate-pulse', 'bg-primary/10')
+        setTimeout(() => {
+          element.classList.remove('animate-pulse', 'bg-primary/10')
+        }, 2000)
+      }
+    }
+  }, [highlightedMessageId])
 
   const isMJ = currentUserRole === 'MJ'
 
@@ -57,16 +90,33 @@ export function MessageList({
             </div>
           ) : (
             messages.map((message) => (
-              <MessageBubble
+              <div
                 key={message.id}
-                message={message}
-                isOwn={message.senderId === currentUserId}
-                showPrivateIndicator={isMJ && !!message.recipientId}
-                isMJ={isMJ}
-              />
+                ref={(el) => {
+                  if (el) {
+                    messageRefs.current.set(message.id, el)
+                  }
+                }}
+                className="transition-colors rounded-lg"
+              >
+                <MessageBubble
+                  message={message}
+                  isOwn={message.senderId === currentUserId}
+                  showPrivateIndicator={isMJ && !!message.recipientId}
+                  isMJ={isMJ}
+                  currentUserId={currentUserId}
+                  onReply={onReply}
+                  onPin={onPin}
+                  onUnpin={onUnpin}
+                  onReaction={onReaction}
+                />
+              </div>
             ))
           )}
         </div>
+
+        {/* Typing indicator */}
+        <TypingIndicator typingUsers={typingUsers} className="mt-2" />
 
         <div ref={bottomRef} />
       </ScrollArea>

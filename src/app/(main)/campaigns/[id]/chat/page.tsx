@@ -6,12 +6,13 @@ import { getCampaignMessages, getCampaignParticipants } from '@/lib/actions/chat
 import { getCurrentUser } from '@/lib/actions/auth'
 
 interface PageProps {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }
 
 export default async function CampaignChatPage({ params }: PageProps) {
+  const { id } = await params
   const [campaign, user] = await Promise.all([
-    getCampaign(params.id),
+    getCampaign(id),
     getCurrentUser()
   ])
 
@@ -24,8 +25,8 @@ export default async function CampaignChatPage({ params }: PageProps) {
   }
 
   const [messages, participants] = await Promise.all([
-    getCampaignMessages(params.id, { limit: 100 }),
-    getCampaignParticipants(params.id)
+    getCampaignMessages(id, { limit: 100 }),
+    getCampaignParticipants(id)
   ])
 
   return (
@@ -38,7 +39,7 @@ export default async function CampaignChatPage({ params }: PageProps) {
 
       <div className="p-6 h-[calc(100vh-8rem)]">
         <ChatWindow
-          campaignId={params.id}
+          campaignId={id}
           currentUserId={user.id}
           currentUserRole={user.role}
           currentUserColor={user.chatColor}
