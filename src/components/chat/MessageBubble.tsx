@@ -85,6 +85,20 @@ export function MessageBubble({
   onReaction
 }: MessageBubbleProps) {
   const [showActions, setShowActions] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
+
+  const handleMouseLeave = () => {
+    if (!menuOpen) {
+      setShowActions(false)
+    }
+  }
+
+  const handleMenuOpenChange = (open: boolean) => {
+    setMenuOpen(open)
+    if (!open) {
+      setShowActions(false)
+    }
+  }
 
   const formatTime = (date: Date) => {
     return new Date(date).toLocaleTimeString('fr-FR', {
@@ -125,7 +139,7 @@ export function MessageBubble({
       <div
         className={cn('flex gap-2 group', isOwn ? 'justify-end' : 'justify-start')}
         onMouseEnter={() => setShowActions(true)}
-        onMouseLeave={() => setShowActions(false)}
+        onMouseLeave={handleMouseLeave}
       >
         {!isOwn && (
           <div className={cn(
@@ -187,6 +201,7 @@ export function MessageBubble({
             onPin={onPin}
             onUnpin={onUnpin}
             onReaction={handleReaction}
+            onOpenChange={handleMenuOpenChange}
           />
         )}
 
@@ -229,7 +244,7 @@ export function MessageBubble({
       <div
         className={cn('flex gap-2 group', isOwn ? 'justify-end' : 'justify-start')}
         onMouseEnter={() => setShowActions(true)}
-        onMouseLeave={() => setShowActions(false)}
+        onMouseLeave={handleMouseLeave}
       >
         {!isOwn && (
           <div className={cn(
@@ -288,6 +303,7 @@ export function MessageBubble({
             onPin={onPin}
             onUnpin={onUnpin}
             onReaction={handleReaction}
+            onOpenChange={handleMenuOpenChange}
           />
         )}
 
@@ -308,7 +324,7 @@ export function MessageBubble({
     <div
       className={cn('flex gap-2 group', isOwn ? 'justify-end' : 'justify-start')}
       onMouseEnter={() => setShowActions(true)}
-      onMouseLeave={() => setShowActions(false)}
+      onMouseLeave={handleMouseLeave}
     >
       {!isOwn && (
         <div className={cn(
@@ -409,6 +425,7 @@ export function MessageBubble({
           onPin={onPin}
           onUnpin={onUnpin}
           onReaction={handleReaction}
+          onOpenChange={handleMenuOpenChange}
         />
       )}
 
@@ -441,7 +458,8 @@ function MessageActions({
   onReply,
   onPin,
   onUnpin,
-  onReaction
+  onReaction,
+  onOpenChange
 }: {
   message: ChatMessageRecord
   isMJ?: boolean
@@ -450,6 +468,7 @@ function MessageActions({
   onPin?: (messageId: string) => void
   onUnpin?: (messageId: string) => void
   onReaction?: (emoji: ReactionEmoji) => void
+  onOpenChange?: (open: boolean) => void
 }) {
   return (
     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -460,7 +479,7 @@ function MessageActions({
         />
       )}
 
-      <DropdownMenu>
+      <DropdownMenu onOpenChange={onOpenChange}>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="icon" className="h-7 w-7">
             <MoreHorizontal className="h-4 w-4" />
