@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { SessionList } from '@/components/campaigns/SessionList'
 import { getCampaign, deleteCampaign } from '@/lib/actions/campaigns'
 import { getCurrentUser } from '@/lib/actions/auth'
+import { getAvailabilitySummaryForSessions } from '@/lib/actions/availability'
 import { Edit, Trash2, Sword, Users, MessageSquare, Scroll, Package, Dices } from 'lucide-react'
 import { redirect } from 'next/navigation'
 
@@ -18,6 +19,12 @@ export default async function CampaignPage({ params }: PageProps) {
     getCampaign(params.id),
     getCurrentUser()
   ])
+
+  // Get availability summary for all sessions
+  const sessionIds = campaign?.sessions?.map(s => s.id) || []
+  const availabilitySummary = sessionIds.length > 0
+    ? await getAvailabilitySummaryForSessions(sessionIds, params.id)
+    : {}
 
   if (!campaign) {
     notFound()
@@ -85,7 +92,12 @@ export default async function CampaignPage({ params }: PageProps) {
             </Card>
 
             {/* Sessions */}
-            <SessionList campaignId={campaign.id} sessions={campaign.sessions || []} isMJ={user?.role === 'MJ'} />
+            <SessionList
+              campaignId={campaign.id}
+              sessions={campaign.sessions || []}
+              isMJ={user?.role === 'MJ'}
+              availabilitySummary={availabilitySummary}
+            />
           </div>
 
           {/* Sidebar */}

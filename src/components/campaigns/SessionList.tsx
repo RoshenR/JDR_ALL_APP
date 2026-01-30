@@ -16,15 +16,24 @@ import {
 import { Plus, Calendar } from 'lucide-react'
 import { createSession } from '@/lib/actions/campaigns'
 import { formatDate } from '@/lib/utils'
+import { AvailabilityBadge } from './AvailabilityBadge'
 import type { Session } from '@/types'
+
+interface AvailabilityCounts {
+  available: number
+  maybe: number
+  unavailable: number
+  total: number
+}
 
 interface SessionListProps {
   campaignId: string
   sessions: Session[]
   isMJ?: boolean
+  availabilitySummary?: Record<string, AvailabilityCounts>
 }
 
-export function SessionList({ campaignId, sessions, isMJ = false }: SessionListProps) {
+export function SessionList({ campaignId, sessions, isMJ = false, availabilitySummary = {} }: SessionListProps) {
   const [open, setOpen] = useState(false)
   const [title, setTitle] = useState('')
   const [date, setDate] = useState('')
@@ -117,6 +126,9 @@ export function SessionList({ campaignId, sessions, isMJ = false }: SessionListP
                     </p>
                   )}
                 </div>
+                {availabilitySummary[session.id] && (
+                  <AvailabilityBadge counts={availabilitySummary[session.id]} />
+                )}
               </Link>
             ))}
           </div>

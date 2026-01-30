@@ -9,20 +9,21 @@ datasource db {
 }
 
 model User {
-  id               String            @id @default(cuid())
-  email            String            @unique
+  id               String                @id @default(cuid())
+  email            String                @unique
   password         String // Hashed password
   name             String
-  role             String            @default("PLAYER") // "MJ" or "PLAYER"
+  role             String                @default("PLAYER") // "MJ" or "PLAYER"
   chatColor        String? // Couleur personnalisée pour le chat (ex: "blue", "emerald", "violet")
   characters       Character[]
   diceRolls        DiceRoll[]
-  sentMessages     ChatMessage[]     @relation("MessageSender")
-  receivedMessages ChatMessage[]     @relation("MessageRecipient")
-  createdGroups    ChatGroup[]       @relation("GroupCreator")
+  sentMessages     ChatMessage[]         @relation("MessageSender")
+  receivedMessages ChatMessage[]         @relation("MessageRecipient")
+  createdGroups    ChatGroup[]           @relation("GroupCreator")
   groupMemberships ChatGroupMember[]
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
+  availabilities   SessionAvailability[]
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
 }
 
 model AuthSession {
@@ -95,16 +96,32 @@ model Campaign {
 }
 
 model Session {
-  id         String    @id @default(cuid())
-  number     Int
-  title      String
-  date       DateTime?
-  summary    String?
-  notes      String?
-  campaignId String
-  campaign   Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  id            String                @id @default(cuid())
+  number        Int
+  title         String
+  date          DateTime?
+  summary       String?
+  notes         String?
+  campaignId    String
+  campaign      Campaign              @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  availabilities SessionAvailability[]
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+}
+
+// ============ SESSION AVAILABILITY (Planning) ============
+
+model SessionAvailability {
+  id        String   @id @default(cuid())
+  status    String   @default("NO_RESPONSE") // "AVAILABLE", "UNAVAILABLE", "MAYBE", "NO_RESPONSE"
+  sessionId String
+  session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([sessionId, userId])
 }
 
 model WikiArticle {

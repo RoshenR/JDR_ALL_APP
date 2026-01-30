@@ -41,6 +41,19 @@ export interface Session {
   notes: string | null
   campaignId: string
   campaign?: Campaign
+  availabilities?: SessionAvailability[]
+  createdAt: Date
+  updatedAt: Date
+}
+
+export type AvailabilityStatus = 'AVAILABLE' | 'UNAVAILABLE' | 'MAYBE' | 'NO_RESPONSE'
+
+export interface SessionAvailability {
+  id: string
+  status: AvailabilityStatus
+  sessionId: string
+  userId: string
+  user?: { id: string; name: string }
   createdAt: Date
   updatedAt: Date
 }
