@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Users, Crown, MessageSquare } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { GroupRecord } from '@/lib/actions/groups'
+import type { GroupRecord } from '@/lib/group-types'
 
 interface GroupCardProps {
   group: GroupRecord

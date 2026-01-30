@@ -21,10 +21,9 @@ import {
 import {
   getGroup,
   getGroupMembers,
-  deleteGroup,
-  type GroupRecord,
-  type GroupMemberRecord
+  deleteGroup
 } from '@/lib/actions/groups'
+import type { GroupRecord, GroupMemberRecord } from '@/lib/group-types'
 import { getCurrentUser, type SessionUser } from '@/lib/actions/auth'
 import { Loader2, Trash2, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'

@@ -20,9 +20,9 @@ import {
   searchUsers,
   addGroupMember,
   removeGroupMember,
-  updateMemberRole,
-  type GroupMemberRecord
+  updateMemberRole
 } from '@/lib/actions/groups'
+import type { GroupMemberRecord } from '@/lib/group-types'
 import {
   Crown,
   UserMinus,
